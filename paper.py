@@ -26,12 +26,10 @@ st.markdown(
 # ==========================================
 # [중요] Groq API 키 로드 (Secrets 연동)
 # ==========================================
-# 깃허브에 올릴 때 이 부분이 핵심입니다.
-# 실제 키 대신 st.secrets를 통해 Streamlit Cloud의 설정값을 가져옵니다.
+# 이미 Secrets 설정을 완료하셨으므로, 이 코드가 정상 작동할 것입니다.
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 except (FileNotFoundError, KeyError):
-    # 로컬이나 배포 환경에 키 설정이 안 되어 있을 때 안내 메시지
     st.error("🚨 API 키가 설정되지 않았습니다!")
     st.info("💡 [배포 후] Streamlit Cloud 앱 설정 > Secrets 메뉴에 'GROQ_API_KEY'를 추가해주세요.")
     st.info("💡 [로컬 실행] .streamlit/secrets.toml 파일을 확인해주세요.")
@@ -88,8 +86,9 @@ def generate_natural_method(api_key, domain_text, image_list):
             },
         })
 
-    # 3. 모델 ID 설정
-    model_id = "llama-3.2-90b-vision-preview" 
+    # 3. 모델 ID 설정 (수정됨: 90b -> 11b)
+    # ⚠️ Groq에서 90b vision 모델을 내렸으므로 11b로 변경했습니다.
+    model_id = "llama-3.2-11b-vision-preview" 
 
     try:
         chat_completion = client.chat.completions.create(
