@@ -107,7 +107,7 @@ def generate_natural_method(api_key, domain_text, image_list):
 # ==========================================
 # [UI] 화면 구성
 # ==========================================
-st.title("📄 AI Paper Writer(LMMLab")
+st.title("📄 AI Paper Writer(LMMLab)")
 
 col1, col2 = st.columns([1, 1])
 
