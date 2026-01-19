@@ -8,7 +8,7 @@ from io import BytesIO
 # [설정] 페이지 기본 설정 (가장 먼저 실행)
 # ==========================================
 st.set_page_config(
-    page_title="Paper Writer (Multi-Image)", 
+    page_title="Paper Writer (Llama 4 Vision)", 
     page_icon="📄", 
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -26,7 +26,6 @@ st.markdown(
 # ==========================================
 # [중요] Groq API 키 로드 (Secrets 연동)
 # ==========================================
-# 이미 Secrets 설정을 완료하셨으므로, 이 코드가 정상 작동할 것입니다.
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 except (FileNotFoundError, KeyError):
@@ -36,16 +35,20 @@ except (FileNotFoundError, KeyError):
     st.stop()
 
 # ==========================================
-# [함수] 이미지 변환
+# [함수] 이미지 변환 (리사이징 추가)
 # ==========================================
 def encode_image_to_base64(image):
+    # Llama 4는 4MB 제한이 엄격하므로, 이미지가 너무 크면 리사이징
+    max_size = (1024, 1024)
+    image.thumbnail(max_size, Image.Resampling.LANCZOS)
+    
     buffered = BytesIO()
     image = image.convert("RGB")
-    image.save(buffered, format="JPEG")
+    image.save(buffered, format="JPEG", quality=85) # 용량 최적화
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
 # ==========================================
-# [함수] 자연스러운 논문 생성 로직 (다중 이미지 지원)
+# [함수] 자연스러운 논문 생성 로직
 # ==========================================
 def generate_natural_method(api_key, domain_text, image_list):
     client = Groq(api_key=api_key)
@@ -54,22 +57,17 @@ def generate_natural_method(api_key, domain_text, image_list):
     user_prompt = f"""
     You are an elite AI researcher writing the **"Proposed Method"** section for a top-tier conference paper (e.g., CVPR, NeurIPS).
     
-    **GOAL:** Analyze the attached architecture diagrams (there may be multiple images detailing different parts) and write a **cohesive, logically flowing** description of the proposed framework.
+    **GOAL:** Analyze the attached architecture diagrams and write a **cohesive, logically flowing** description of the proposed framework.
     
     **INSTRUCTIONS:**
-    1. **No Artificial Segmentation:** Do NOT force the text into too many sub-sections. Prioritize a **smooth narrative flow**.
-    2. **Synthesize Information:** If multiple images are provided (e.g., overall architecture + detailed module), synthesize them into a single coherent explanation.
-    3. **Academic Rigor:** Use high-level academic English. Use **LaTeX** for all variables and formulas ($x$, $L_{{total}}$).
-    4. **Detail Oriented:** Describe exactly what is happening in the images. Start with the overall pipeline and naturally transition into the details of specific components.
+    1. **Narrative Flow:** Do NOT force the text into too many sub-sections. Prioritize a smooth narrative.
+    2. **Synthesis:** Synthesize multiple images into a single coherent explanation.
+    3. **Academic Tone:** Use high-level academic English and **LaTeX** for variables ($x$, $L_{{total}}$).
+    4. **Detail:** Describe exactly what happens in the pipeline, transitioning naturally between components.
 
     [Context Info]
     - **Domain:** {domain_text}
-    - **Visual Input:** {len(image_list)} architecture diagram(s) attached.
-
-    **Structure Guide:**
-    - Start with a strong paragraph summarizing the overall framework.
-    - Dedicate substantial paragraphs to detailing the key modules shown in the diagrams.
-    - Conclude with the training objectives or inference strategy.
+    - **Visual Input:** {len(image_list)} diagram(s).
     
     Start writing the "Proposed Method" section now.
     """
@@ -86,9 +84,9 @@ def generate_natural_method(api_key, domain_text, image_list):
             },
         })
 
-    # 3. 모델 ID 설정 (수정됨: 90b -> 11b)
-    # ⚠️ Groq에서 90b vision 모델을 내렸으므로 11b로 변경했습니다.
-    model_id = "llama-3.2-11b-vision-preview" 
+    # 3. 모델 ID 설정 (최신 Llama 4 Scout 적용)
+    # 이전 모델(11b/90b-preview)은 종료되었으므로 아래 모델을 사용해야 합니다.
+    model_id = "meta-llama/llama-4-scout-17b-16e-instruct"
 
     try:
         chat_completion = client.chat.completions.create(
@@ -104,12 +102,12 @@ def generate_natural_method(api_key, domain_text, image_list):
         )
         return chat_completion.choices[0].message.content
     except Exception as e:
-        return f"❌ Groq 오류 발생: {str(e)}"
+        return f"❌ 오류 발생: {str(e)}"
 
 # ==========================================
 # [UI] 화면 구성
 # ==========================================
-st.title("📄 AI Paper Writer (Multi-Image Support)")
+st.title("📄 AI Paper Writer (Llama 4 Vision)")
 
 col1, col2 = st.columns([1, 1])
 
@@ -122,7 +120,7 @@ with col1:
 
 with col2:
     uploaded_files = st.file_uploader(
-        "2. 아키텍처 이미지 업로드 (여러 장 선택 가능)", 
+        "2. 아키텍처 이미지 업로드 (여러 장 가능)", 
         type=["jpg", "png", "jpeg"],
         accept_multiple_files=True
     )
@@ -142,11 +140,11 @@ with col2:
 
 st.divider()
 
-if st.button("🚀 자연스러운 논문 작성 시작", type="primary", use_container_width=True):
+if st.button("🚀 논문 작성 시작", type="primary", use_container_width=True):
     if not pil_images:
-        st.error("이미지를 한 장 이상 업로드해주세요!")
+        st.error("이미지를 업로드해주세요!")
     else:
-        with st.spinner(f'AI가 {len(pil_images)}장의 그림과 설명을 분석하여 글을 쓰고 있습니다...'):
+        with st.spinner(f'Llama 4 Scout가 {len(pil_images)}장의 이미지를 분석 중입니다...'):
             result = generate_natural_method(GROQ_API_KEY, domain_input, pil_images)
             
             st.divider()
