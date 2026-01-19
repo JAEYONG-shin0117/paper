@@ -107,7 +107,7 @@ def generate_natural_method(api_key, domain_text, image_list):
 # ==========================================
 # [UI] 화면 구성
 # ==========================================
-st.title("📄 AI Paper Writer (Llama 4 Vision)")
+st.title("📄 AI Paper Writer(LMMLab")
 
 col1, col2 = st.columns([1, 1])
 
@@ -144,7 +144,7 @@ if st.button("🚀 논문 작성 시작", type="primary", use_container_width=Tr
     if not pil_images:
         st.error("이미지를 업로드해주세요!")
     else:
-        with st.spinner(f'Llama 4 Scout가 {len(pil_images)}장의 이미지를 분석 중입니다...'):
+        with st.spinner(f'이미지를 분석 중입니다. 잠시만 기다려주세요....'):
             result = generate_natural_method(GROQ_API_KEY, domain_input, pil_images)
             
             st.divider()
