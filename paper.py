@@ -5,13 +5,7 @@ import base64
 from io import BytesIO
 
 # ==========================================
-# [설정] Groq API 키 입력
-# ==========================================
-# ⚠️ 본인의 API 키를 입력하세요.
-GROQ_API_KEY = "="
-
-# ==========================================
-# [설정] 페이지 기본 설정
+# [설정] 페이지 기본 설정 (가장 먼저 실행)
 # ==========================================
 st.set_page_config(
     page_title="Paper Writer (Multi-Image)", 
@@ -28,6 +22,20 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+# ==========================================
+# [중요] Groq API 키 로드 (Secrets 연동)
+# ==========================================
+# 깃허브에 올릴 때 이 부분이 핵심입니다.
+# 실제 키 대신 st.secrets를 통해 Streamlit Cloud의 설정값을 가져옵니다.
+try:
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+except (FileNotFoundError, KeyError):
+    # 로컬이나 배포 환경에 키 설정이 안 되어 있을 때 안내 메시지
+    st.error("🚨 API 키가 설정되지 않았습니다!")
+    st.info("💡 [배포 후] Streamlit Cloud 앱 설정 > Secrets 메뉴에 'GROQ_API_KEY'를 추가해주세요.")
+    st.info("💡 [로컬 실행] .streamlit/secrets.toml 파일을 확인해주세요.")
+    st.stop()
 
 # ==========================================
 # [함수] 이미지 변환
@@ -68,10 +76,9 @@ def generate_natural_method(api_key, domain_text, image_list):
     Start writing the "Proposed Method" section now.
     """
 
-    # 2. 메시지 페이로드 구성 (텍스트 + 여러 이미지)
+    # 2. 메시지 페이로드 구성
     content_payload = [{"type": "text", "text": user_prompt}]
 
-    # 이미지 리스트를 순회하며 페이로드에 추가
     for img in image_list:
         base64_img = encode_image_to_base64(img)
         content_payload.append({
@@ -81,9 +88,7 @@ def generate_natural_method(api_key, domain_text, image_list):
             },
         })
 
-    # 3. 모델 ID 설정 (Vision 지원 모델 확인 필요)
-    # 참고: Groq에서 Vision을 지원하는 최신 모델을 사용해야 합니다.
-    # 예: llama-3.2-11b-vision-preview 또는 90b
+    # 3. 모델 ID 설정
     model_id = "llama-3.2-90b-vision-preview" 
 
     try:
@@ -117,25 +122,20 @@ with col1:
     )
 
 with col2:
-    # accept_multiple_files=True 설정 추가
     uploaded_files = st.file_uploader(
         "2. 아키텍처 이미지 업로드 (여러 장 선택 가능)", 
         type=["jpg", "png", "jpeg"],
         accept_multiple_files=True
     )
     
-    # 업로드된 이미지 미리보기
     if uploaded_files:
         st.write(f"✅ 총 {len(uploaded_files)}장의 이미지가 선택되었습니다.")
-        # 탭으로 이미지를 나누어 보여주거나 그리드로 표시
         tabs = st.tabs([f"이미지 {i+1}" for i in range(len(uploaded_files))])
         
-        # 처리용 이미지 리스트 미리 생성
         pil_images = []
-        
         for i, uploaded_file in enumerate(uploaded_files):
             image = Image.open(uploaded_file)
-            pil_images.append(image) # 리스트에 저장
+            pil_images.append(image)
             with tabs[i]:
                 st.image(image, caption=uploaded_file.name, use_container_width=True)
     else:
@@ -144,13 +144,10 @@ with col2:
 st.divider()
 
 if st.button("🚀 자연스러운 논문 작성 시작", type="primary", use_container_width=True):
-    if "여기에" in GROQ_API_KEY or not GROQ_API_KEY:
-        st.error("🚨 코드 상단에 Groq API 키를 입력해주세요!")
-    elif not pil_images:
+    if not pil_images:
         st.error("이미지를 한 장 이상 업로드해주세요!")
     else:
         with st.spinner(f'AI가 {len(pil_images)}장의 그림과 설명을 분석하여 글을 쓰고 있습니다...'):
-            # 리스트 형태의 이미지를 함수로 전달
             result = generate_natural_method(GROQ_API_KEY, domain_input, pil_images)
             
             st.divider()
